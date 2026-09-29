@@ -1,0 +1,30 @@
+# Build artifacts
+.build/
+build/
+dist/
+# keep addon binaries tracked
+bin/
+!.gitkeep
+addons/multi_mouse/bin/multi_mouse.gdextension
+addons/multi_mouse/bin/win64/
+addons/multi_mouse/bin/win64/*.dll
+!addons/multi_mouse/bin/linux/
+!addons/multi_mouse/bin/linux/*.so
+*.dll
+*.so
+*.dylib
+
+# Godot
+.export/
+.import/
+demo/.godot
+*.import
+*.uid
+
+# Submodule outputs
+extern/godot-cpp/bin/
+extern/godot-cpp/.sconsign.dblite
+
+# Editor cruft
+.DS_Store
+Thumbs.db

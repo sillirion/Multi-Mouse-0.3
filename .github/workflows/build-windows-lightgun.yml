@@ -12,10 +12,19 @@ jobs:
         target: [template_debug, template_release]
 
     steps:
-      - name: Checkout source and godot-cpp
+      - name: Checkout Multi-Mouse
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Download godot-cpp
+        shell: pwsh
+        run: |
+          if (Test-Path "extern/godot-cpp") {
+            Remove-Item "extern/godot-cpp" -Recurse -Force
+          }
+          git clone --depth 1 --branch 10.0.0-stable https://github.com/godotengine/godot-cpp.git extern/godot-cpp
+          if (-not (Test-Path "extern/godot-cpp/SConstruct")) {
+            throw "godot-cpp download failed"
+          }
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -45,6 +54,7 @@ jobs:
         with:
           path: compiled
           merge-multiple: true
+
       - name: Upload both DLLs together
         uses: actions/upload-artifact@v4
         with:

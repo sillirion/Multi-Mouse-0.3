@@ -24,6 +24,8 @@ constexpr int32_t BUTTON_WHEEL_LEFT = 6;
 constexpr int32_t BUTTON_WHEEL_RIGHT = 7;
 constexpr int32_t BUTTON_X1 = 8;
 constexpr int32_t BUTTON_X2 = 9;
+constexpr UINT_PTR RAW_INPUT_WATCHDOG_TIMER_ID = 1;
+constexpr UINT RAW_INPUT_WATCHDOG_INTERVAL_MS = 500;
 }
 
 MultiMouseBackendWindows::MultiMouseBackendWindows(MultiMouseServer *server) : MultiMouseBackend(server) {}
@@ -169,6 +171,14 @@ bool MultiMouseBackendWindows::register_raw_input_window() {
         return false;
     }
 
+    // Godot/Windows can replace the generic-mouse Raw Input registration
+    // during runtime display-mode/resolution changes. Reclaim it periodically
+    // from the backend window's own thread while this backend is alive.
+    SetTimer(_hwnd,
+             RAW_INPUT_WATCHDOG_TIMER_ID,
+             RAW_INPUT_WATCHDOG_INTERVAL_MS,
+             nullptr);
+
     ShowWindow(_hwnd, SW_HIDE);
     return true;
 }
@@ -194,6 +204,13 @@ LRESULT CALLBACK MultiMouseBackendWindows::WindowProc(HWND hwnd, UINT msg, WPARA
                 backend->handle_device_change(reinterpret_cast<HANDLE>(lparam), wparam == GIDC_ARRIVAL);
             }
             return 0;
+        }
+        case WM_TIMER: {
+            if (backend && wparam == RAW_INPUT_WATCHDOG_TIMER_ID) {
+                backend->register_raw_input_devices();
+                return 0;
+            }
+            break;
         }
         case WM_DESTROY: {
             PostQuitMessage(0);
@@ -434,6 +451,7 @@ uint32_t MultiMouseBackendWindows::update_button_mask(const std::string &guid, i
 
 void MultiMouseBackendWindows::cleanup_window() {
     if (_hwnd && !_target_hwnd) {
+        KillTimer(_hwnd, RAW_INPUT_WATCHDOG_TIMER_ID);
         DestroyWindow(_hwnd);
         UnregisterClassW(kWindowClassName, GetModuleHandleW(nullptr));
     }

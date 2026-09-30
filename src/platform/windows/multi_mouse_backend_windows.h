@@ -30,6 +30,7 @@ public:
     void stop() override;
     void poll() override;
     uint64_t get_raw_input_count() const override;
+    bool refresh_raw_input_registration() override;
 
 private:
     struct PendingEvent {

@@ -440,6 +440,13 @@ void MultiMouseBackendWindows::cleanup_window() {
     _hwnd = nullptr;
 }
 
+bool MultiMouseBackendWindows::refresh_raw_input_registration() {
+    if (!_running.load() || !_hwnd) {
+        return false;
+    }
+    return register_raw_input_devices();
+}
+
 uint64_t MultiMouseBackendWindows::get_raw_input_count() const {
     return _raw_input_count.load(std::memory_order_relaxed);
 }

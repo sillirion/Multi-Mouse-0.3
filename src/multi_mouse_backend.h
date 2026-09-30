@@ -17,6 +17,7 @@ public:
     virtual void stop() {}
     virtual void poll() {}
     virtual uint64_t get_raw_input_count() const { return 0; }
+    virtual bool refresh_raw_input_registration() { return false; }
 
     virtual void set_target_window(void * /*hwnd*/) {}
 

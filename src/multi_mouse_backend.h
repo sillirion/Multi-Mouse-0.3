@@ -1,6 +1,7 @@
 #ifndef MULTI_MOUSE_BACKEND_H
 #define MULTI_MOUSE_BACKEND_H
 
+#include <cstdint>
 #include <memory>
 
 namespace godot {
@@ -15,6 +16,7 @@ public:
     virtual void start() {}
     virtual void stop() {}
     virtual void poll() {}
+    virtual uint64_t get_raw_input_count() const { return 0; }
 
     virtual void set_target_window(void * /*hwnd*/) {}
 

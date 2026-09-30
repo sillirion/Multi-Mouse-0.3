@@ -184,6 +184,7 @@ LRESULT CALLBACK MultiMouseBackendWindows::WindowProc(HWND hwnd, UINT msg, WPARA
         }
         case WM_INPUT: {
             if (backend) {
+                backend->_raw_input_count.fetch_add(1, std::memory_order_relaxed);
                 backend->handle_raw_input(reinterpret_cast<HRAWINPUT>(lparam));
             }
             return 0;
@@ -437,6 +438,10 @@ void MultiMouseBackendWindows::cleanup_window() {
         UnregisterClassW(kWindowClassName, GetModuleHandleW(nullptr));
     }
     _hwnd = nullptr;
+}
+
+uint64_t MultiMouseBackendWindows::get_raw_input_count() const {
+    return _raw_input_count.load(std::memory_order_relaxed);
 }
 
 void MultiMouseBackendWindows::set_target_window(void *hwnd) {

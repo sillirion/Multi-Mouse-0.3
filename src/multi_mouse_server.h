@@ -35,6 +35,7 @@ public:
     void enable_backend();
     void disable_backend();
     void attach_to_window(uint64_t hwnd);
+    uint64_t get_raw_input_count() const;
 
     int32_t register_device(const MultiMouseDeviceInfo &info);
     void unregister_device(int32_t device_id);

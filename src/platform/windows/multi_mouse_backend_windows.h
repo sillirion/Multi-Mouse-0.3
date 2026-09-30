@@ -29,6 +29,7 @@ public:
     void start() override;
     void stop() override;
     void poll() override;
+    uint64_t get_raw_input_count() const override;
 
 private:
     struct PendingEvent {
@@ -65,6 +66,7 @@ private:
 
     std::thread _thread;
     std::atomic<bool> _running{false};
+    std::atomic<uint64_t> _raw_input_count{0};
     HWND _hwnd = nullptr;
     HWND _target_hwnd = nullptr;
 

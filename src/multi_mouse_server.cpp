@@ -22,6 +22,7 @@ void MultiMouseServer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("enable_backend"), &MultiMouseServer::enable_backend);
     ClassDB::bind_method(D_METHOD("disable_backend"), &MultiMouseServer::disable_backend);
     ClassDB::bind_method(D_METHOD("attach_to_window", "hwnd"), &MultiMouseServer::attach_to_window);
+    ClassDB::bind_method(D_METHOD("get_raw_input_count"), &MultiMouseServer::get_raw_input_count);
 
     ADD_SIGNAL(MethodInfo("device_connected",
                           PropertyInfo(Variant::INT, "device_id"),
@@ -66,6 +67,13 @@ void MultiMouseServer::attach_to_window(uint64_t hwnd) {
     if (_backend) {
         _backend->set_target_window(reinterpret_cast<void *>(hwnd));
     }
+}
+
+uint64_t MultiMouseServer::get_raw_input_count() const {
+    if (!_backend) {
+        return 0;
+    }
+    return _backend->get_raw_input_count();
 }
 
 int32_t MultiMouseServer::register_device(const MultiMouseDeviceInfo &info) {

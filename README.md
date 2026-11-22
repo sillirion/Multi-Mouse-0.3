@@ -1,131 +1,140 @@
-# Multi-Mouse
+# Multi-Mouse — independent mouse and lightgun input for Godot
 
-Multi-Mouse is a Godot 4 add-on that delivers raw per-device mouse input. Plug in
-multiple USB mice and each one gets its own motion stream, button events, and
-metadata so your game can treat every physical mouse as a unique player or tool.
+**Multi-Mouse** is a native GDExtension project for Godot that exposes input from individual physical pointing devices instead of combining every mouse into a single system cursor. It is intended for local multiplayer, multiple-mouse experiments, and lightgun-style input.
 
-**Project home:** https://github.com/duan-c/Multi-Mouse
+> **Development status:** The source includes Windows Raw Input support and a Linux/ManyMouse backend, but this repository does **not** currently contain the GDExtension descriptor or precompiled binaries required for a plug-and-play installation. Build output and Godot runtime compatibility have not been verified for this repository revision. Treat it as source code / work in progress, not a tested binary release.
 
-> The Windows Raw Input backend is working end-to-end
-> (see the demos below). Linux support is still on the roadmap, so expect
-> Windows-only binaries for now.
+## Features in the source
 
-## Highlights
+- **Per-device input:** independent movement and button events, with a numeric `event.device` identifier and `device_guid` metadata.
+- **Windows Raw Input backend:** receives input from multiple mice and watches for device connection/disconnection.
+- **Relative and absolute motion:** preserves raw absolute coordinates (commonly a 0–65535 range) for applications such as lightgun aiming. **Absolute coordinates are not automatically mapped to viewport pixels.**
+- **Mouse buttons and scrolling:** left, right, middle, X1/X2, vertical and horizontal wheel handling in the Windows backend.
+- **Godot-facing `MultiMouse` node:** signals and methods to manage input in a scene without a mandatory autoload.
+- **Diagnostics hooks:** native `get_raw_input_count()` and `refresh_raw_input_registration()` methods.
+- **Linux backend source:** ManyMouse integration with XInput2/evdev (not validated here).
+- **Example projects:** Simple, Pong and Slime demo scenes.
 
-- **Node-based workflow** – the `MultiMouse` node can be dropped into any scene.
-  Call `attach_to_window()` + `enable()` and you immediately start receiving
-  `motion`, `button`, `device_connected`, and `device_disconnected` signals.
-- **Godot-friendly events** – the native extension emits standard
-  `InputEventMouseMotion` / `InputEventMouseButton` objects that already contain
-  `device`, `device_guid`, and raw deltas.
-- **Reference demos** – the Simple motion logger, the two-mouse Pong scene,
-  and the fully interactive Slime toy showcase how to use the node in real projects.
+These are implementation-level features identified from the repository, **not a guarantee of tested hardware or platform support**.
 
-## Repository layout
+## Compatibility and current limitations
 
-```
-Multi-Mouse/
-├─ addons/multi_mouse/    # Godot plugin + MultiMouse node
-├─ demo/                  # Simple + Slime demo projects
-├─ scripts/               # Build helpers (Windows + Linux)
-├─ src/                   # GDExtension/native backend
-└─ extern/godot-cpp/      # Submodule required for builds
-```
+| Platform | Source status | Distribution status |
+| --- | --- | --- |
+| Windows x86-64 | Raw Input backend implemented | Build workflow present; no bundled DLLs |
+| Linux x86-64 | ManyMouse backend included | Local build script present; not verified |
+| macOS | No native Multi-Mouse backend in this repository | Not supported |
 
-## Quick start (Windows)
+The current Windows build helper requests `godot-cpp` bindings for Godot API **4.7**, while the GitHub Actions workflow checks out `godot-cpp` **10.0.0-stable**. Check that these versions match the intended Godot runtime before distributing binaries.
 
-1. Clone the repo and fetch submodules:
-   ```bash
-   git clone https://github.com/duan-c/Multi-Mouse.git
-   cd Multi-Mouse
-   git submodule update --init --recursive
-   ```
-2. Build the extension DLL via PowerShell:
-   ```powershell
-   pwsh ./scripts/build_windows.ps1 -Target template_debug
-   ```
-   This compiles `godot-cpp`, builds the native extension, and drops the DLL
-   into `addons/multi_mouse/bin/win64/`.
-3. Open `demo/project.godot` (or your own project), enable the plugin under
-   **Project → Project Settings → Plugins**, and add a `MultiMouse` node to the
-   scene where you want raw input.
-4. In that scene’s script, wire it up:
-   ```gdscript
-   @onready var multi_mouse: MultiMouse = $MultiMouse
+**Important:** The tracked repository does not include an `addons/multi_mouse/*.gdextension` descriptor. Godot cannot load the native extension merely by copying the folder until a correctly configured descriptor and matching binary files are available.
 
-   func _ready():
-       multi_mouse.attach_to_window(0) # bind to the main window
-       multi_mouse.enable()
-       multi_mouse.motion.connect(_on_motion)
+## Repository structure
 
-   func _on_motion(event: InputEventMouseMotion) -> void:
-       print("Mouse", event.device, "moved", event.relative)
-   ```
-
-## Quick start (Linux)
-
-Dependencies: `cmake`, `ninja` or GNU Make, `scons`, a C/C++ toolchain, and the X11 + Xi development headers. On Ubuntu/Debian:
-
-```bash
-sudo apt install build-essential python3-pip scons cmake libx11-dev libxi-dev
+```text
+addons/multi_mouse/     Godot node and editor plugin source
+demo/                   Simple, Pong and Slime examples
+docs/screenshots/       Demo screenshots
+src/                    C++ GDExtension and platform backends
+extern/manymouse/       Bundled ManyMouse sources
+scripts/                Windows and Linux build scripts
+.github/workflows/      On-demand Windows build workflow
 ```
 
-1. Clone the repo and submodules (same as Windows).
-2. Build the debug `godot-cpp` and native library:
-   ```bash
-   ./scripts/build_linux.sh
-   ```
-3. Build the release variant:
-   ```bash
-   TARGET=template_release ./scripts/build_linux.sh
-   ```
-   Each run drops `libmulti_mouse.linux.<target>.x86_64.so` into `addons/multi_mouse/bin/linux/` so the add-on can consume it immediately.
-4. Open `demo/project.godot`, enable the plugin, and run any of the scenes.
+## Building from source
 
-### Runtime notes (Linux)
+### Windows
 
-- The backend uses [ManyMouse](https://github.com/icculus/manymouse) (zlib license). By default it tries the XInput2 driver so normal users don’t need `/dev/input` access.
-- To force the evdev backend (one device per `/dev/input/event*` node), export `MANYMOUSE_NO_XINPUT2=1` before launching Godot. You’ll need read access to `/dev/input/event*` (run Godot as root, add yourself to the `input` group, or drop in a udev rule).
-- Some VMs expose a single virtual pointer that XInput2 splits into “motion” and “button” slaves. If you see clicks coming from a different device ID, switch to the evdev backend as described above. On real hardware with two USB mice you’ll get one device ID per physical mouse.
+Requirements: Windows x86-64, PowerShell, Python/SCons, CMake, a compatible C++ build toolchain, and `godot-cpp`.
+
+```powershell
+git clone https://github.com/sillirion/Multi-Mouse-0.3.git
+cd Multi-Mouse-0.3
+git submodule update --init --recursive
+./scripts/build_windows.ps1 -Target template_debug
+./scripts/build_windows.ps1 -Target template_release
+```
+
+The script expects `extern/godot-cpp` to be present and writes libraries to `addons/multi_mouse/bin/win64/`. It is configured for Godot API 4.7; review the binding version and compiler setup before building.
+
+**GitHub Actions:** Under **Actions → Build Windows Lightgun DLLs → Run workflow**, the existing manual workflow attempts debug and release builds and bundles their DLLs into the artifact `multi-mouse-lightgun-windows-x86_64`. An Actions artifact is a build output, **not** a published GitHub Release, and a successful run has not been verified as part of this documentation update.
+
+### Linux
+
+The repository also contains `scripts/build_linux.sh`, which builds against ManyMouse and native X11 dependencies. This path is not verified as part of this update. Review the local compiler, SCons, CMake and Godot binding requirements before using it.
+
+## Godot API
+
+After building and correctly registering the native GDExtension, the `MultiMouse` node provides:
+
+| Member | Purpose |
+| --- | --- |
+| `attach_to_window(hwnd: int)` | Sets the target native window handle; `0` uses the backend's own input window on Windows |
+| `enable()` / `disable()` | Starts or stops the input backend |
+| `get_devices()` | Returns known device metadata |
+| `request_poll()` | Polls queued native events (also called during node processing) |
+| `motion(event)` | Emits an `InputEventMouseMotion` |
+| `button(event)` | Emits an `InputEventMouseButton` |
+| `device_connected(id, info)` | Reports a newly detected device |
+| `device_disconnected(id)` | Reports a removed device |
+
+Example scene script (assuming the extension is already loadable and a `MultiMouse` child exists):
+
+```gdscript
+@onready var multi_mouse: MultiMouse = $MultiMouse
+
+func _ready() -> void:
+    multi_mouse.motion.connect(_on_motion)
+    multi_mouse.button.connect(_on_button)
+    multi_mouse.attach_to_window(0)
+    multi_mouse.enable()
+
+func _on_motion(event: InputEventMouseMotion) -> void:
+    var is_absolute := bool(event.get_meta("is_absolute", false))
+    var raw_position: Vector2 = event.get_meta("raw_position", Vector2.ZERO)
+    print("Device ", event.device, " absolute=", is_absolute,
+          " raw=", raw_position, " relative=", event.relative)
+
+func _on_button(event: InputEventMouseButton) -> void:
+    print("Device ", event.device, " button=", event.button_index,
+          " pressed=", event.pressed)
+```
+
+For absolute devices, interpret `raw_position` and `virtual_desktop` metadata in your own aiming/calibration logic. Do not assume `event.position` is expressed in window pixels.
 
 ## Demos
 
-Both demos live inside `demo/project.godot` and have their own README files.
+### Simple — device input inspection
 
-- **Simple demo** (`demo/simple`)
-  - Shows the bare-minimum integration: attach the node, print motion/button
-    events, quit with `Esc`.
-  ![Simple demo screenshot](docs/screenshots/simple_demo.png)
-- **Pong demo** (`demo/pong`)
-  - Local multiplayer built entirely with Multi-Mouse input. The first mouse to
-    left-click claims the left paddle, the first right-click claims the right
-    paddle, and both players can rally immediately. `Esc` exits.
-  ![Pong demo screenshot](docs/screenshots/pong_demo.png)
-- **Slime demo** (`demo/slime`)
-  - A physics net you can poke with one or many mice. Press `1` for a radial
-    mesh, `2` for a grid, `C` to toggle springs/connections, and `N` to toggle
-    the node overlay. Holding multiple buttons lets you “push harder”, and the
-    `mesh_texture` export makes it easy to drop in any tileable membrane art.
-  ![Slime demo screenshot](docs/screenshots/slime_demo.png)
+![Simple demo](docs/screenshots/simple_demo.png)
 
-> Default slime membrane texture: “Handpainted tileable textures 512×512 – ooz_slime.png” by DeadKir (CC0) via OpenGameArt.
+A minimal example for observing mouse motion and buttons. Source: [demo/simple](demo/simple).
 
-## Building
+### Pong — two-mouse local multiplayer
 
-- **Windows** – use `scripts/build_windows.ps1`. It runs SCons for `godot-cpp`,
-  configures CMake, and copies the resulting `multi_mouse.dll` into the plugin.
-- **Linux** – `scripts/build_linux.sh` contains the equivalent flow, but the
-  backend is still stubbed. Only build here if you are hacking on the future
-  Linux support.
+![Pong demo](docs/screenshots/pong_demo.png)
 
-## Roadmap
+An example of per-device input driving a local multiplayer game. Source: [demo/pong](demo/pong).
 
-- ✅ Windows Raw Input backend with hotplug + per-device events
-- ✅ Drop-in `MultiMouse` node (no global autoload requirement)
-- ✅ Simple + Slime demo updates
-- 🔄 Better diagnostics UI and asset-library packaging
-- 🔜 Linux backend (ManyMouse/libinput) and macOS support
+### Slime — interactive mouse-driven physics toy
 
-## License
+![Slime demo](docs/screenshots/slime_demo.png)
 
-MIT
+An interactive example that responds to multiple pointing devices. Source: [demo/slime](demo/slime).
+
+## Troubleshooting
+
+- **`MultiMouseServer native singleton is not available`:** The GDExtension has not loaded. Confirm that the descriptor exists and points to compatible compiled libraries.
+- **Devices are detected but aiming does not move:** Inspect `is_absolute` and `raw_position`; some lightguns report absolute packets rather than relative deltas.
+- **Input disappears after a display-mode change:** The Windows backend includes a periodic Raw Input re-registration watchdog. Check whether the host application is overriding Raw Input registration.
+- **Compilation fails:** Check the `godot-cpp` revision/API version, generated bindings, toolchain and native library path.
+
+## Credits and licensing
+
+This repository includes work derived from the original [Multi-Mouse project by duan-c](https://github.com/duan-c/Multi-Mouse), as indicated by its existing documentation. Refer to the upstream project for its original history.
+
+Project license: [MIT](LICENSE). Bundled ManyMouse sources have their own license notice in [extern/manymouse/LICENSE.txt](extern/manymouse/LICENSE.txt). Verify any additional third-party asset attribution before redistribution.
+
+## Contributing
+
+Bug reports with the Godot version, operating system, device type, relevant logs, and reproducible steps are especially helpful. Changes to platform backends should be tested with at least two physical devices where possible.
